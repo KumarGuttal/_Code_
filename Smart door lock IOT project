@@ -1,0 +1,65 @@
+import cv2
+import logging
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+
+# Set up logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+# Function to capture an image from the camera
+def capture_image():
+    camera = cv2.VideoCapture(0)  # Initialize the default camera
+    ret, frame = camera.read()  # Capture a frame
+    if ret:
+        image_path = 'visitor_image.jpg'  # Path to save the image
+        cv2.imwrite(image_path, frame)  # Save the captured image
+    camera.release()  # Release the camera
+    return image_path  # Return the path of the saved image
+
+# Define your bot's start command
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Hello! I am your IoT bot.")
+
+# Command to open the door
+async def open_door(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Door is now open!")
+
+# Command to close the door
+async def close_door(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Door is now closed!")
+
+# Command handler for /request_access
+async def request_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    image_path = capture_image()  # Capture the image
+    try:
+        # Send the captured image to the owner's chat
+        with open(image_path, 'rb') as photo:
+            await context.bot.send_photo(chat_id='1043233103', photo=photo, caption='A visitor is requesting access.')
+        await update.message.reply_text('Image captured and sent for approval.')
+    except Exception as e:
+        logging.error(f"Error sending photo: {e}")
+        await update.message.reply_text('Failed to send the image. Please try again later.')
+
+# Define a generic message handler
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_message = update.message.text
+    await update.message.reply_text(f"You said: {user_message}")
+
+# Main function to set up the bot
+def main() -> None:
+    application = Application.builder().token('7729317678:AAG-olfP2eyi3JeDBQAwV8J99n0vtufBdIM').build()
+
+    # Add command handlers to the application
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("open_door", open_door))
+    application.add_handler(CommandHandler("close_door", close_door))
+    application.add_handler(CommandHandler("request_access", request_access))
+
+    # Add a handler for all text messages (generic handler)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # Run the bot and start polling for updates
+    application.run_polling()
+
+if __name__ == "__main__":
+    main()
